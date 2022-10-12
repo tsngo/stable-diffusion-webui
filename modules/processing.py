@@ -16,7 +16,6 @@ from modules.sd_hijack import model_hijack
 from modules.shared import opts, cmd_opts, state
 import modules.shared as shared
 import modules.face_restoration
-import modules.images as images
 import modules.styles
 import logging
 
@@ -323,6 +322,10 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
         assert(len(p.prompt) > 0)
     else:
         assert p.prompt is not None
+
+    with open(os.path.join(shared.script_path, "params.json"), "w", encoding="utf8") as file:
+        processed = Processed(p, [], p.seed, "")
+        file.write(processed.js())
 
     devices.torch_gc()
 
@@ -715,3 +718,5 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
         devices.torch_gc()
 
         return samples
+
+import modules.images as images
