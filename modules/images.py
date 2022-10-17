@@ -10,7 +10,6 @@ import piexif.helper
 from PIL import Image, ImageFont, ImageDraw, PngImagePlugin
 from fonts.ttf import Roboto
 import string
-from modules.processing import Processed
 
 from modules import sd_samplers, shared
 from modules.shared import opts, cmd_opts
@@ -463,9 +462,5 @@ def save_image(image, path, basename, seed=None, prompt=None, extension='png', i
     else:
         txt_fullfn = None
 
-    if (opts.save_json):
-        with open(f"{fullfn_without_extension}.json", "w", encoding="utf8") as file:
-            processed = Processed(p, [], seed, info)
-            file.write(processed.js())
 
     return fullfn, txt_fullfn
