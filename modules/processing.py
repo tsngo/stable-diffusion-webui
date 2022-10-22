@@ -773,5 +773,5 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
 
         del x
         devices.torch_gc()
-
-		return samples
+        
+        return samples
