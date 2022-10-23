@@ -17,6 +17,7 @@ from modules.sd_hijack import model_hijack
 from modules.shared import opts, cmd_opts, state
 import modules.shared as shared
 import modules.face_restoration
+import modules.images as images
 import modules.styles
 import logging
 
