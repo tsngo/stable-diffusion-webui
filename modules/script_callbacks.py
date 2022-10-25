@@ -2,13 +2,14 @@
 callbacks_model_loaded = []
 callbacks_ui_tabs = []
 callbacks_ui_settings = []
+callbacks_before_image_saved = []
 callbacks_image_saved = []
 
 def clear_callbacks():
     callbacks_model_loaded.clear()
     callbacks_ui_tabs.clear()
+    callbacks_before_image_saved.clear()
     callbacks_image_saved.clear()
-
 
 def model_loaded_callback(sd_model):
     for callback in callbacks_model_loaded:
@@ -29,9 +30,15 @@ def ui_settings_callback():
         callback()
 
 
-def image_saved_callback(image, p, fullfn, txt_fullfn):
+def before_image_saved_callback(image, p, **kwargs):
+    for callback in callbacks_before_image_saved:
+        image, p, kwargs = callback(image, p, **kwargs)
+    return image, p, kwargs
+
+
+def image_saved_callback(image, p, fullfn, txt_fullfn, **kwargs):
     for callback in callbacks_image_saved:
-        callback(image, p, fullfn, txt_fullfn)
+        callback(image, p, fullfn, txt_fullfn, **kwargs)
 
 def on_model_loaded(callback):
     """register a function to be called when the stable diffusion model is created; the model is
@@ -58,6 +65,13 @@ def on_ui_settings(callback):
     callbacks_ui_settings.append(callback)
 
 
-def on_save_imaged(callback):
-    """register a function to call after modules.images.save_image is called returning same values, original image and p """
+def on_before_image_saved(callback):
+    """register a function to call after modules.images.save_image is called; original image and p (`StableDiffusionProcessing`) alone with kwargs passed as arguments
+    save_image will use modified values returned by callback
+    """
+    callbacks_before_image_saved.append(callback)
+
+
+def on_image_saved(callback):
+    """register a function to call before modules.images.save_image is called; image and p (`StableDiffusionProcessing`), fullfn, txt_fullfn and kwargs passed as arguments"""
     callbacks_image_saved.append(callback)
