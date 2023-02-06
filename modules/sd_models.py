@@ -41,6 +41,7 @@ class CheckpointInfo:
             name = name[1:]
 
         self.name = name
+        self.name_for_extra = os.path.splitext(os.path.basename(filename))[0]
         self.model_name = os.path.splitext(name.replace("/", "_").replace("\\", "_"))[0]
         self.hash = model_hash(filename)
 
@@ -58,13 +59,17 @@ class CheckpointInfo:
 
     def calculate_shorthash(self):
         self.sha256 = hashes.sha256(self.filename, "checkpoint/" + self.name)
+        if self.sha256 is None:
+            return
+
         self.shorthash = self.sha256[0:10]
 
         if self.shorthash not in self.ids:
-            self.ids += [self.shorthash, self.sha256]
-            self.register()
+            self.ids += [self.shorthash, self.sha256, f'{self.name} [{self.shorthash}]']
 
+        checkpoints_list.pop(self.title)
         self.title = f'{self.name} [{self.shorthash}]'
+        self.register()
 
         return self.shorthash
 
@@ -157,7 +162,7 @@ def select_checkpoint():
         print(f" - directory {model_path}", file=sys.stderr)
         if shared.cmd_opts.ckpt_dir is not None:
             print(f" - directory {os.path.abspath(shared.cmd_opts.ckpt_dir)}", file=sys.stderr)
-        print("Can't run without a checkpoint. Find and place a .ckpt file into any of those locations. The program will exit.", file=sys.stderr)
+        print("Can't run without a checkpoint. Find and place a .ckpt or .safetensors file into any of those locations. The program will exit.", file=sys.stderr)
         exit(1)
 
     checkpoint_info = next(iter(checkpoints_list.values()))
@@ -231,12 +236,10 @@ def get_checkpoint_state_dict(checkpoint_info: CheckpointInfo, timer):
 
 
 def load_model_weights(model, checkpoint_info: CheckpointInfo, state_dict, timer):
-    title = checkpoint_info.title
     sd_model_hash = checkpoint_info.calculate_shorthash()
     timer.record("calculate hash")
 
-    if checkpoint_info.title != title:
-        shared.opts.data["sd_model_checkpoint"] = checkpoint_info.title
+    shared.opts.data["sd_model_checkpoint"] = checkpoint_info.title
 
     if state_dict is None:
         state_dict = get_checkpoint_state_dict(checkpoint_info, timer)
@@ -351,6 +354,9 @@ def repair_config(sd_config):
         sd_config.model.params.unet_config.params.use_fp16 = True
 
 
+sd1_clip_weight = 'cond_stage_model.transformer.text_model.embeddings.token_embedding.weight'
+sd2_clip_weight = 'cond_stage_model.model.transformer.resblocks.0.attn.in_proj_weight'
+
 def load_model(checkpoint_info=None, already_loaded_state_dict=None, time_taken_to_load_state_dict=None):
     from modules import lowvram, sd_hijack
     checkpoint_info = checkpoint_info or select_checkpoint()
@@ -371,6 +377,7 @@ def load_model(checkpoint_info=None, already_loaded_state_dict=None, time_taken_
         state_dict = get_checkpoint_state_dict(checkpoint_info, timer)
 
     checkpoint_config = sd_models_config.find_checkpoint_config(state_dict, checkpoint_info)
+    clip_is_included_into_sd = sd1_clip_weight in state_dict or sd2_clip_weight in state_dict
 
     timer.record("find config")
 
@@ -383,7 +390,7 @@ def load_model(checkpoint_info=None, already_loaded_state_dict=None, time_taken_
 
     sd_model = None
     try:
-        with sd_disable_initialization.DisableInitialization():
+        with sd_disable_initialization.DisableInitialization(disable_clip=clip_is_included_into_sd):
             sd_model = instantiate_from_config(sd_config.model)
     except Exception as e:
         pass
